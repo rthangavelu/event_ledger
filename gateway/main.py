@@ -18,6 +18,8 @@ from fastapi import Depends, FastAPI, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
 
+from common.audit import AuditTrail
+from common.errors import install_error_handlers
 from common.logging_config import configure_logging
 from common.metrics import MetricsRegistry
 from common.middleware import ObservabilityMiddleware
@@ -43,13 +45,17 @@ def create_app(
     app.state.db = db or GatewayDB()
     app.state.account_client = account_client or AccountClient()
     app.state.metrics = metrics
+    app.state.audit = AuditTrail(SERVICE_NAME, app.state.db.append_audit)
     app.add_middleware(ObservabilityMiddleware, metrics=metrics)
+    install_error_handlers(app, SERVICE_NAME)
 
     def get_db() -> GatewayDB:
         return app.state.db
 
     def get_client() -> AccountClient:
         return app.state.account_client
+
+    audit = app.state.audit
 
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(request, exc: RequestValidationError):
@@ -64,6 +70,7 @@ def create_app(
             }
             for err in exc.errors()
         ]
+        audit.record("EVENT_SUBMIT", "REJECTED_VALIDATION", errors=len(detail))
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"error": "validation_error", "detail": detail},
@@ -82,6 +89,12 @@ def create_app(
             logger.info(
                 "event.duplicate",
                 extra={"event_id": body.eventId, "account_id": body.accountId},
+            )
+            audit.record(
+                "EVENT_SUBMIT",
+                "DUPLICATE",
+                account_id=body.accountId,
+                event_id=body.eventId,
             )
             response.status_code = status.HTTP_200_OK
             return existing.to_response(duplicate=True)
@@ -104,6 +117,13 @@ def create_app(
                 "event.account_unavailable",
                 extra={"event_id": body.eventId, "error": str(exc)},
             )
+            audit.record(
+                "EVENT_SUBMIT",
+                "DOWNSTREAM_UNAVAILABLE",
+                account_id=body.accountId,
+                event_id=body.eventId,
+                circuit_state=client.circuit_state.value,
+            )
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 content={
@@ -113,6 +133,13 @@ def create_app(
                 },
             )
         except AccountClientError as exc:
+            audit.record(
+                "EVENT_SUBMIT",
+                "DOWNSTREAM_REJECTED",
+                account_id=body.accountId,
+                event_id=body.eventId,
+                status=exc.status_code,
+            )
             return JSONResponse(
                 status_code=exc.status_code,
                 content={"error": "account_service_rejected", "detail": exc.detail},
@@ -144,6 +171,15 @@ def create_app(
                 "type": stored.type,
                 "amount": stored.amount,
             },
+        )
+        audit.record(
+            "EVENT_SUBMIT",
+            "ACCEPTED",
+            account_id=stored.account_id,
+            event_id=stored.event_id,
+            type=stored.type,
+            amount=stored.amount,
+            currency=stored.currency,
         )
         response.status_code = status.HTTP_201_CREATED
         return stored.to_response(duplicate=False)
@@ -214,6 +250,15 @@ def create_app(
     @app.get("/metrics")
     def get_metrics():
         return PlainTextResponse(metrics.render())
+
+    @app.get("/audit")
+    def get_audit(
+        account: Optional[str] = Query(default=None),
+        limit: int = Query(default=100, ge=1, le=1000),
+        db: GatewayDB = Depends(get_db),
+    ):
+        # Read-only view over the append-only audit trail (Gateway-local).
+        return {"entries": db.list_audit(account, limit)}
 
     return app
 

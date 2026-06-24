@@ -14,6 +14,8 @@ import sqlite3
 import threading
 from typing import List, Optional
 
+from common import audit
+
 from .models import StoredEvent
 
 
@@ -45,7 +47,14 @@ class GatewayDB:
                 "CREATE INDEX IF NOT EXISTS idx_events_account "
                 "ON events(account_id, event_timestamp)"
             )
+            audit.init_audit_schema(self._conn)
             self._conn.commit()
+
+    def append_audit(self, entry: audit.AuditEntry) -> None:
+        audit.append_audit(self._conn, self._lock, entry)
+
+    def list_audit(self, account_id: Optional[str] = None, limit: int = 100) -> List[dict]:
+        return audit.list_audit(self._conn, self._lock, account_id, limit)
 
     def ping(self) -> bool:
         try:
