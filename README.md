@@ -38,6 +38,7 @@ transaction to the Account Service through a **resilient HTTP client**.
 | `GET`  | `/events?account={accountId}` | List an account's events, ordered by `eventTimestamp` |
 | `GET`  | `/accounts/{accountId}/balance` | Balance (proxied to Account Service) |
 | `GET`  | `/accounts/{accountId}` | Account detail (proxied to Account Service) |
+| `GET`  | `/audit` | Read-only audit trail (`?account=&limit=`) |
 | `GET`  | `/health` | Health + DB + circuit-breaker state |
 | `GET`  | `/metrics` | Prometheus metrics |
 
@@ -51,15 +52,26 @@ Only ever called by the Gateway.
 | `POST` | `/accounts/{accountId}/transactions` | Apply a transaction |
 | `GET`  | `/accounts/{accountId}/balance` | Current balance |
 | `GET`  | `/accounts/{accountId}` | Account detail + recent transactions |
+| `GET`  | `/audit` | Read-only audit trail (`?account=&limit=`) |
 | `GET`  | `/health` | Health + DB connectivity |
 | `GET`  | `/metrics` | Prometheus metrics |
 
 ### Shared (`common/`)
 
 Cross-cutting concerns only (no business logic, no shared state): W3C
-`traceparent` propagation, JSON logging, a tiny metrics registry, and the ASGI
-observability middleware. It is copied into each service image so the services
-remain independently deployable.
+`traceparent` propagation, JSON logging, a tiny metrics registry, the ASGI
+observability middleware, an append-only **audit trail**, and a centralized
+**error handler**. It is copied into each service image so the services remain
+independently deployable.
+
+## Documentation
+
+- **[`docs/DESIGN.md`](docs/DESIGN.md)** — design document with architecture,
+  sequence, state-machine, and ER diagrams (Mermaid).
+- **[`docs/AI_SDLC.md`](docs/AI_SDLC.md)** — how this was built with an
+  AI-assisted, agent-driven SDLC workflow (Design / Development / QA agents).
+- **[`reports/COVERAGE_SUMMARY.md`](reports/COVERAGE_SUMMARY.md)** — test &
+  coverage reports (92% combined).
 
 ## How it meets the requirements
 
@@ -74,6 +86,8 @@ remain independently deployable.
 | **Structured logging** | Single-line JSON with timestamp, level, service, trace/span IDs. |
 | **Health checks** | `GET /health` on both, reporting DB connectivity (and circuit state on the Gateway). |
 | **Custom metric** | Request counter, error counter, and latency **histogram**, exposed at `/metrics` (Prometheus format) and summarised in `/health`. |
+| **Auditing** | Append-only, tamper-evident audit trail in both services (DB + structured logs), trace-correlated, queryable via `GET /audit`. |
+| **Error handling** | Global exception handler returns a structured `500` echoing the `trace_id`; validation → structured `400`. |
 | **Resiliency** | Timeout + bounded retry-with-backoff/jitter + circuit breaker (see below). |
 | **Graceful degradation** | Account down → `POST /events` and balance queries return `503`; local reads (`GET /events...`) keep working. |
 
@@ -152,18 +166,28 @@ ACCOUNT_SERVICE_URL=http://localhost:8001 uvicorn gateway.main:app --port 8000
 
 ```bash
 pip install -r requirements-dev.txt
-pytest
+pytest                       # all 63 tests
+pytest tests/unit            # 33 unit tests (fast, no I/O)
+pytest tests/functional      # 30 functional/integration tests
+
+# Coverage + HTML reports into reports/ (92% combined)
+make coverage                # or: make reports
 ```
 
-The suite (27 tests) covers:
+The suite (63 tests) is split into **unit** (`tests/unit/`) and **functional**
+(`tests/functional/`) layers and covers:
 
 - **Core**: validation, idempotency, out-of-order ordering, exact-decimal balances
 - **Resiliency**: Account Service failure → `503`; circuit breaker opens & fails
   fast; breaker recovery; retry succeeds on a transient failure
 - **Graceful degradation**: local reads keep working while the downstream is down
 - **Tracing**: trace IDs flow Gateway → Account Service (asserted via captured logs)
+- **Auditing**: audit entries recorded for accept/duplicate/outage, across services
 - **Integration**: full `POST /events` → balance flow against a *real* Account
   Service running over HTTP on a background port
+
+Coverage and per-suite test reports are generated under [`reports/`](reports/)
+(`coverage.xml`, `htmlcov/index.html`, `unit-tests.html`, `functional-tests.html`).
 
 ## Configuration
 
