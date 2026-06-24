@@ -7,3 +7,6 @@ venv/
 *.sqlite
 .DS_Store
 .env
+.coverage
+.coverage.*
+# Generated coverage HTML lives under reports/htmlcov (committed as a deliverable).
