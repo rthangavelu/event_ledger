@@ -146,6 +146,58 @@ The Gateway serves a single-page **test console** at `/` that can exercise
 
 It calls the Gateway on the same origin, so there's no extra setup.
 
+#### Testing through the UI (step by step)
+
+**0. Open the console.** Start the stack (`docker compose up --build`) and open
+**http://localhost:8000/**. The header shows two live indicators: `gateway`
+(with circuit-breaker state) and `downstream` (Account Service fault mode).
+
+**1. One-click full verification (covers all requirements).**
+   - Scroll to **Acceptance Scenarios** and click **▶ Run all scenarios**.
+   - Watch each check go green; the score should read **11/11 passed**. This runs
+     validation, idempotency, out-of-order, balance, tracing, health, metrics,
+     and the resiliency/graceful-degradation flow (it briefly injects an outage
+     and waits for the circuit to recover, so it takes ~10s).
+
+To test requirements individually:
+
+**2. Submit & idempotency.**
+   - In **Submit Event**, click **Load sample**, then **Submit event** → `201`,
+     `duplicate:false`. Note the `x-trace-id` shown under the response.
+   - Click **↻ Resubmit (idempotency)** → `200`, `duplicate:true`.
+   - In **Queries**, click **Balance** → the balance is unchanged and
+     `transactionCount` is `1` (the duplicate did not double-count).
+
+**3. Validation.** Try to submit invalid input and confirm `400`:
+   - Set **Amount** to `0` or `-5` → **Submit event** → `400 validation_error`.
+   - (Unknown type / missing fields are also checked automatically by scenario
+     runner items 1–4, since the form constrains those inputs.)
+
+**4. Out-of-order ordering.** Submit a few events for one account with **Event
+   timestamp** set out of order (e.g. one at 09:00, then 18:00, then 12:00),
+   then click **List events** → they come back **sorted by event timestamp**.
+
+**5. Balance correctness.** Submit a `CREDIT` and a `DEBIT` for the same account,
+   then click **Balance** → net = credits − debits (exact decimal).
+
+**6. Distributed tracing.** After any submit, the response panel shows the
+   `x-trace-id`. Confirm it flows downstream by clicking **Audit** — the same
+   `trace_id` appears on the Account Service's audit entries
+   (`docker compose logs | grep <trace-id>` shows it in both services' logs too).
+
+**7. Observability.** Click **Health** (status + DB + circuit state) and
+   **Metrics ↗** (Prometheus counters + latency histogram). **Audit** shows the
+   append-only audit trail.
+
+**8. Resiliency + graceful degradation.** In **Fault Injection**:
+   - Click **✕ Unavailable (error)**. The `downstream` header indicator turns red.
+   - **Submit event** → `503` (clear error, not a hang/500). **Balance** → `503`.
+   - **List events** / **Get** by ID → still `200` (served from the Gateway's
+     local DB). After 3 failed writes the header circuit flips to **OPEN** and
+     further calls fail fast.
+   - Click **● Healthy** → within ~5s the circuit half-opens, a write succeeds,
+     and it returns to **CLOSED**.
+
 Quick smoke test:
 
 ```bash
@@ -184,15 +236,15 @@ ACCOUNT_SERVICE_URL=http://localhost:8001 uvicorn gateway.main:app --port 8000
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                       # all 63 tests
+pytest                       # all 68 tests
 pytest tests/unit            # 33 unit tests (fast, no I/O)
-pytest tests/functional      # 30 functional/integration tests
+pytest tests/functional      # 35 functional/integration tests
 
 # Coverage + HTML reports into reports/ (92% combined)
 make coverage                # or: make reports
 ```
 
-The suite (63 tests) is split into **unit** (`tests/unit/`) and **functional**
+The suite (68 tests) is split into **unit** (`tests/unit/`) and **functional**
 (`tests/functional/`) layers and covers:
 
 - **Core**: validation, idempotency, out-of-order ordering, exact-decimal balances
