@@ -6,6 +6,12 @@ into specialized agent roles that mirror an SDLC, each with a clear objective,
 inputs, and verifiable outputs. This document records how AI assistance was
 applied across the lifecycle and where to find each deliverable.
 
+> **Explicit agent configuration:** the agents below are formally defined — with
+> models, tools, inputs/outputs, acceptance criteria, guardrails, prompt
+> templates, and an improvement roadmap — under [`../agents/`](../agents/)
+> ([`agents.yaml`](../agents/agents.yaml) + per-agent playbooks). A repo-level
+> [`AGENTS.md`](../AGENTS.md) captures the working agreement and definition of done.
+
 ## Roles and deliverables
 
 ### Design Agent

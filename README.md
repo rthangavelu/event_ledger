@@ -70,6 +70,9 @@ independently deployable.
   sequence, state-machine, and ER diagrams (Mermaid).
 - **[`docs/AI_SDLC.md`](docs/AI_SDLC.md)** — how this was built with an
   AI-assisted, agent-driven SDLC workflow (Design / Development / QA agents).
+- **[`agents/`](agents/)** — explicit, reusable agent configuration
+  ([`agents.yaml`](agents/agents.yaml) + playbooks): designs, usage, and an
+  improvement roadmap for future projects. See also [`AGENTS.md`](AGENTS.md).
 - **[`reports/COVERAGE_SUMMARY.md`](reports/COVERAGE_SUMMARY.md)** — test &
   coverage reports (92% combined).
 

@@ -1,0 +1,139 @@
+# =============================================================================
+# AI Agent Configuration — Event Ledger
+# -----------------------------------------------------------------------------
+# Declarative, reviewable definition of the AI agents used to build and maintain
+# this project across the SDLC. It is intentionally tool-agnostic: the agents map
+# cleanly onto Cursor subagents (the `Task` tool), but the same roles work with
+# any agent runner (Claude/GPT via an SDK, GitHub Copilot agents, CrewAge, etc.).
+#
+# Each agent declares: objective, the model class it suits, the inputs it
+# consumes, the tools it may use, the artifacts it produces, machine-checkable
+# acceptance criteria, and guardrails. Detailed prompts live in the referenced
+# `playbook` markdown files so they can be edited and version-controlled.
+# =============================================================================
+
+version: 1
+project: event-ledger
+description: >
+  An agent-driven SDLC: a thin orchestrator decomposes a requirement brief and
+  hands off to specialized Design, Development, QA, and Review agents in a loop
+  until every requirement has code, tests, docs, and a green verification run.
+
+# ---- Shared defaults applied to every agent unless overridden -----------------
+defaults:
+  # Suggested Cursor model slugs (override per task as needed).
+  reasoning_model: claude-4.5-sonnet-thinking   # design / review / planning
+  coding_model: gpt-5.2-codex                   # implementation / tests
+  working_agreement:
+    - Decompose work into a tracked todo list with one in-progress item.
+    - Generate → verify in a tight loop; never mark work done before it is proven.
+    - Keep changes small and commit incrementally with conventional messages.
+  global_guardrails:
+    - Never commit secrets (.env, tokens, credentials).
+    - Never force-push or rewrite shared history without explicit human approval.
+    - Prefer existing files/patterns over inventing new ones.
+    - Stop and ask when scope, data loss, or irreversible actions are involved.
+
+# ---- Orchestration: the order agents run and how control flows ---------------
+pipeline:
+  mode: iterative          # loop until acceptance criteria for all stages pass
+  stages: [design, development, qa, review, release]
+  handoff:
+    design -> development:  "DESIGN.md approved; API contracts frozen"
+    development -> qa:      "feature compiles, lints clean, smoke-tested"
+    qa -> review:           "unit + functional suites green; coverage >= gate"
+    review -> release:      "no high/critical findings; reviewer sign-off"
+    any -> design:          "a defect or ambiguity requires a design change"
+
+# =============================================================================
+agents:
+
+  orchestrator:
+    name: Orchestrator
+    role: Plan, sequence, and verify hand-offs between specialized agents.
+    model: ${defaults.reasoning_model}
+    inputs: [requirement brief, current repo state, agent outputs]
+    tools: [TodoWrite, Task, Read, Grep]
+    outputs: [task plan/todo list, hand-off decisions, final summary]
+    acceptance_criteria:
+      - Every requirement maps to at least one downstream agent task.
+      - No stage advances until its predecessor's acceptance criteria pass.
+    guardrails:
+      - Owns no code; delegates implementation to the Development agent.
+      - Surfaces blockers to the human instead of guessing.
+    playbook: agents/orchestrator.md
+
+  design:
+    name: Design Agent
+    role: Turn requirements into an explicit, reviewable design + diagrams.
+    model: ${defaults.reasoning_model}
+    mode: read-only
+    inputs: [requirement brief, existing code/docs]
+    tools: [Read, Grep, Glob, WebSearch, "Task(subagent_type=explore)"]
+    outputs:
+      - docs/DESIGN.md (architecture, sequence, state, ER diagrams in Mermaid)
+      - inter-service API contract
+      - design decisions + trade-off log
+    acceptance_criteria:
+      - All Mermaid diagrams render; no broken references.
+      - Every functional + non-functional requirement is addressed.
+      - Each significant decision lists its rationale and trade-off.
+    guardrails:
+      - Read-only: proposes design, never edits source.
+      - Diagrams as text (Mermaid), never binary images.
+    playbook: agents/design-agent.md
+
+  development:
+    name: Development Agent
+    role: Implement the design with production-grade cross-cutting concerns.
+    model: ${defaults.coding_model}
+    inputs: [docs/DESIGN.md, API contract]
+    tools: [Read, Write, StrReplace, Shell, ReadLints]
+    outputs:
+      - service + shared-library code
+      - error handling, structured logging, tracing, auditing, metrics
+      - Dockerfiles, docker-compose, incremental conventional commits
+    acceptance_criteria:
+      - ReadLints clean on all edited files.
+      - Each component smoke-tested immediately after generation.
+      - Commit history is incremental and meaningful (no squashed mega-commit).
+    guardrails:
+      - Idempotent, safe DB writes; no shared state across services.
+      - No narration comments; comments explain intent/trade-offs only.
+    playbook: agents/development-agent.md
+
+  qa:
+    name: QA Agent
+    role: Prove correctness + resiliency and quantify coverage.
+    model: ${defaults.coding_model}
+    inputs: [code, requirement brief]
+    tools: [Read, Write, Shell, "Task(subagent_type=browser-use)"]
+    outputs:
+      - tests/unit (isolated) + tests/functional (end-to-end)
+      - coverage + HTML test reports under reports/
+      - in-browser acceptance-scenario verification (screenshots)
+    acceptance_criteria:
+      - All suites pass via a single command (pytest).
+      - Combined coverage >= coverage_gate.
+      - Resiliency + tracing + degradation are asserted, not assumed.
+    config:
+      coverage_gate: 90
+    guardrails:
+      - Unit tests do no real I/O; functional tests own their fixtures.
+      - Tests are deterministic (seeded, no sleeps-as-synchronization).
+    playbook: agents/qa-agent.md
+
+  review:
+    name: Review Agent
+    role: Independent security + correctness review of the diff.
+    model: ${defaults.reasoning_model}
+    mode: read-only
+    inputs: [git diff / branch changes]
+    tools: ["Task(subagent_type=bugbot)", "Task(subagent_type=security-review)"]
+    outputs: [findings list with severity, suggested fixes]
+    acceptance_criteria:
+      - No high/critical findings left unaddressed.
+      - Each finding is either fixed or explicitly accepted with rationale.
+    guardrails:
+      - Runs read-only; a human approves merges.
+    playbook: agents/review-agent.md
