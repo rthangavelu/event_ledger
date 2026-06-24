@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Event Ledger — Console</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel2: #273449; --line: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8; --accent2: #818cf8;
+    --ok: #22c55e; --warn: #f59e0b; --err: #ef4444; --credit: #22c55e; --debit: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.5;
+  }
+  header {
+    padding: 18px 28px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 14px; background: #0b1220;
+    position: sticky; top: 0; z-index: 5;
+  }
+  header h1 { font-size: 18px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  .health { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .dot.bad { background: var(--err); box-shadow: 0 0 8px var(--err); }
+  .wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; padding: 22px 28px; max-width: 1300px; margin: 0 auto; }
+  @media (max-width: 960px) { .wrap { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .card h2 { font-size: 14px; margin: 0 0 14px; text-transform: uppercase; letter-spacing: .6px; color: var(--accent); }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  input, select, textarea {
+    width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel2); color: var(--text); font-size: 14px; font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 60px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  button {
+    border: none; border-radius: 8px; padding: 9px 14px; font-size: 13px; font-weight: 600;
+    cursor: pointer; background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    transition: filter .12s ease;
+  }
+  button:hover { filter: brightness(1.18); }
+  button.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #07111f; border: none; }
+  button.ghost { background: transparent; }
+  .q-group { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+  .q-group:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+  .inline { display: flex; gap: 8px; align-items: flex-end; }
+  .inline > div { flex: 1; }
+  .inline label { margin-top: 0; }
+  .out-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .badge { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--panel2); color: var(--muted); }
+  .badge.s2 { background: rgba(34,197,94,.15); color: var(--ok); }
+  .badge.s4 { background: rgba(245,158,11,.15); color: var(--warn); }
+  .badge.s5 { background: rgba(239,68,68,.15); color: var(--err); }
+  pre {
+    background: #0b1220; border: 1px solid var(--line); border-radius: 10px; padding: 14px;
+    overflow: auto; max-height: 520px; margin: 0; font-size: 12.5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word;
+  }
+  .trace { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+  .trace code { color: var(--accent); }
+  .pill { font-size: 11px; padding: 2px 7px; border-radius: 6px; }
+  .pill.CREDIT { background: rgba(34,197,94,.15); color: var(--credit); }
+  .pill.DEBIT { background: rgba(248,113,113,.15); color: var(--debit); }
+  .hint { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>⛁ Event Ledger</h1>
+  <span class="sub">test console</span>
+  <div class="health">
+    <span id="gw-dot" class="dot"></span> gateway
+    <span id="gw-circuit" class="sub" style="margin-left:6px"></span>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- LEFT: actions -->
+  <div>
+    <div class="card">
+      <h2>Submit Event &nbsp;<span class="hint">POST /events</span></h2>
+      <div class="row">
+        <div>
+          <label>Event ID</label>
+          <input id="eventId" placeholder="evt-001" />
+        </div>
+        <div>
+          <label>Account ID</label>
+          <input id="accountId" value="acct-123" />
+        </div>
+      </div>
+      <div class="row3">
+        <div>
+          <label>Type</label>
+          <select id="type">
+            <option>CREDIT</option>
+            <option>DEBIT</option>
+          </select>
+        </div>
+        <div>
+          <label>Amount</label>
+          <input id="amount" type="number" step="0.01" min="0" value="150.00" />
+        </div>
+        <div>
+          <label>Currency</label>
+          <input id="currency" value="USD" />
+        </div>
+      </div>
+      <label>Event timestamp</label>
+      <input id="eventTimestamp" type="datetime-local" />
+      <label>Metadata (optional JSON)</label>
+      <textarea id="metadata" placeholder='{"source": "mainframe-batch", "batchId": "B-9042"}'></textarea>
+      <div class="btns">
+        <button class="primary" onclick="submitEvent()">Submit event</button>
+        <button onclick="randomId()">🎲 Random ID</button>
+        <button onclick="resubmitLast()" title="Submit again with the same ID to test idempotency">↻ Resubmit last (idempotency)</button>
+        <button class="ghost" onclick="loadSample()">Load sample</button>
+      </div>
+      <div class="hint">Tip: submit the same Event ID twice → second response is <code>200</code> with <code>duplicate:true</code> and the balance is unchanged.</div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h2>Queries</h2>
+
+      <div class="q-group">
+        <div class="inline">
+          <div>
+            <label>Get event by ID &nbsp;<span class="hint">GET /events/{id}</span></label>
+            <input id="qEventId" placeholder="evt-001" />
+          </div>
+          <button onclick="getEvent()">Get</button>
+        </div>
+      </div>
+
+      <div class="q-group">
+        <div class="inline">
+          <div>
+            <label>List / balance / audit by account</label>
+            <input id="qAccountId" value="acct-123" />
+          </div>
+          <button onclick="listEvents()">List events</button>
+          <button onclick="getBalance()">Balance</button>
+          <button onclick="getAccount()">Account</button>
+          <button onclick="getAudit()">Audit</button>
+        </div>
+        <div class="hint">Stop the Account Service to see graceful degradation: list still works (<code>200</code>); balance/account return <code>503</code>.</div>
+      </div>
+
+      <div class="q-group">
+        <div class="btns">
+          <button onclick="health()">Health</button>
+          <button onclick="window.open('/metrics','_blank')">Metrics ↗</button>
+          <button onclick="getAudit(true)">Full audit ↗</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: response -->
+  <div class="card">
+    <div class="out-head">
+      <h2 style="margin:0">Response</h2>
+      <span id="method" class="badge"></span>
+      <span id="status" class="badge"></span>
+      <span id="latency" class="sub" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <pre id="output">// Responses appear here. Submit an event to begin.</pre>
+    <div class="trace" id="trace"></div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let lastPayload = null;
+
+  function nowLocal() {
+    const d = new Date(); d.setSeconds(0, 0);
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d - tz).toISOString().slice(0, 16);
+  }
+  $('eventTimestamp').value = nowLocal();
+
+  function randomId() {
+    $('eventId').value = 'evt-' + Math.random().toString(36).slice(2, 8);
+  }
+  function loadSample() {
+    randomId();
+    $('accountId').value = 'acct-123';
+    $('type').value = 'CREDIT';
+    $('amount').value = '150.00';
+    $('currency').value = 'USD';
+    $('eventTimestamp').value = nowLocal();
+    $('metadata').value = '{"source": "mainframe-batch", "batchId": "B-9042"}';
+  }
+
+  function render(method, status, body, headers, ms) {
+    $('method').textContent = method;
+    const s = $('status');
+    s.textContent = status;
+    s.className = 'badge s' + String(status)[0];
+    $('latency').textContent = ms != null ? ms + ' ms' : '';
+    $('output').textContent = typeof body === 'string' ? body : JSON.stringify(body, null, 2);
+    const tid = headers && headers.get && headers.get('x-trace-id');
+    $('trace').innerHTML = tid ? 'trace id: <code>' + tid + '</code>' : '';
+  }
+
+  async function call(method, url, payload) {
+    const t0 = performance.now();
+    try {
+      const opts = { method, headers: {} };
+      if (payload !== undefined) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(payload);
+      }
+      const res = await fetch(url, opts);
+      const ms = Math.round(performance.now() - t0);
+      let body;
+      const ct = res.headers.get('content-type') || '';
+      body = ct.includes('application/json') ? await res.json() : await res.text();
+      render(method, res.status, body, res.headers, ms);
+      return res;
+    } catch (e) {
+      render(method, 'ERR', 'Network error: ' + e.message + '\n\nIs the Gateway running on this origin?', null, null);
+    }
+  }
+
+  async function submitEvent() {
+    const payload = {
+      eventId: $('eventId').value.trim() || ('evt-' + Math.random().toString(36).slice(2, 8)),
+      accountId: $('accountId').value.trim(),
+      type: $('type').value,
+      amount: parseFloat($('amount').value),
+      currency: $('currency').value.trim(),
+      eventTimestamp: new Date($('eventTimestamp').value).toISOString(),
+    };
+    $('eventId').value = payload.eventId;
+    const meta = $('metadata').value.trim();
+    if (meta) {
+      try { payload.metadata = JSON.parse(meta); }
+      catch (e) { render('POST', 'ERR', 'Metadata is not valid JSON: ' + e.message); return; }
+    }
+    lastPayload = payload;
+    await call('POST', '/events', payload);
+  }
+
+  async function resubmitLast() {
+    if (!lastPayload) { render('POST', 'ERR', 'Submit an event first, then resubmit to test idempotency.'); return; }
+    await call('POST', '/events', lastPayload);
+  }
+
+  function getEvent() {
+    const id = $('qEventId').value.trim() || $('eventId').value.trim();
+    if (!id) { render('GET', 'ERR', 'Enter an event ID.'); return; }
+    call('GET', '/events/' + encodeURIComponent(id));
+  }
+  const acct = () => $('qAccountId').value.trim();
+  function listEvents() { call('GET', '/events?account=' + encodeURIComponent(acct())); }
+  function getBalance() { call('GET', '/accounts/' + encodeURIComponent(acct()) + '/balance'); }
+  function getAccount() { call('GET', '/accounts/' + encodeURIComponent(acct())); }
+  function getAudit(all) { call('GET', '/audit' + (all ? '' : '?account=' + encodeURIComponent(acct()))); }
+  function health() { call('GET', '/health'); }
+
+  async function pollHealth() {
+    try {
+      const res = await fetch('/health');
+      const body = await res.json();
+      $('gw-dot').className = 'dot ' + (res.ok ? 'ok' : 'bad');
+      const circuit = body.checks && body.checks.account_service_circuit;
+      $('gw-circuit').textContent = circuit ? '· circuit: ' + circuit : '';
+    } catch (e) {
+      $('gw-dot').className = 'dot bad';
+      $('gw-circuit').textContent = '· unreachable';
+    }
+  }
+  pollHealth();
+  setInterval(pollHealth, 4000);
+</script>
+</body>
+</html>

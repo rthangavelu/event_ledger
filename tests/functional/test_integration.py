@@ -55,3 +55,10 @@ def test_metrics_endpoint_exposes_custom_metric(gateway_client):
 
 def test_event_not_found_returns_404(gateway_client):
     assert gateway_client.get("/events/does-not-exist").status_code == 404
+
+
+def test_ui_is_served(gateway_client):
+    resp = gateway_client.get("/")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "Event Ledger" in resp.text

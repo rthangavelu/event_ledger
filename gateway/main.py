@@ -11,12 +11,15 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import logging
+import pathlib
 from decimal import Decimal
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Query, Response, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+
+_STATIC_DIR = pathlib.Path(__file__).parent / "static"
 
 from common.audit import AuditTrail
 from common.errors import install_error_handlers
@@ -246,6 +249,14 @@ def create_app(
         }
         code = status.HTTP_200_OK if db_ok else status.HTTP_503_SERVICE_UNAVAILABLE
         return JSONResponse(payload, status_code=code)
+
+    @app.get("/", include_in_schema=False)
+    def ui():
+        # Minimal single-page console for manually exercising the Gateway.
+        index = _STATIC_DIR / "index.html"
+        if index.exists():
+            return FileResponse(index)
+        return HTMLResponse("<h1>Event Gateway</h1><p>UI not found.</p>")
 
     @app.get("/metrics")
     def get_metrics():

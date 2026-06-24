@@ -125,8 +125,16 @@ All values are configurable via environment variables (see `docker-compose.yml`)
 docker compose up --build
 ```
 
-- Gateway:         http://localhost:8000
+- **Web UI / test console: http://localhost:8000/** ← open this in a browser
+- Gateway API:     http://localhost:8000
 - Account Service: http://localhost:8001 (internal; exposed for convenience)
+
+### Web UI
+
+The Gateway serves a small single-page **test console** at `/` for exercising the
+system without `curl`: submit events, resubmit to see idempotency, query
+events/balance/account/audit, and watch the live health + circuit-breaker
+indicator. It calls the Gateway on the same origin, so no extra setup is needed.
 
 Quick smoke test:
 
