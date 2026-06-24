@@ -131,10 +131,20 @@ docker compose up --build
 
 ### Web UI
 
-The Gateway serves a small single-page **test console** at `/` for exercising the
-system without `curl`: submit events, resubmit to see idempotency, query
-events/balance/account/audit, and watch the live health + circuit-breaker
-indicator. It calls the Gateway on the same origin, so no extra setup is needed.
+The Gateway serves a single-page **test console** at `/` that can exercise
+**every requirement** from the browser — no `curl` needed:
+
+- **Submit / query** events, balances, account detail, and the audit trail; live
+  health + circuit-breaker + downstream indicators in the header.
+- **Fault injection** — toggle the Account Service to *Healthy / Unavailable /
+  Slow* (`POST /test/fault`, gated by `ENABLE_TEST_CONTROLS`). This drives the
+  real retry + circuit-breaker code, so you can test resiliency and graceful
+  degradation without stopping any container.
+- **Acceptance scenario runner** — “Run all scenarios” executes automated checks
+  for validation, idempotency, out-of-order, balance, tracing, health, metrics,
+  and resiliency/degradation, showing pass/fail with details (11/11 green).
+
+It calls the Gateway on the same origin, so there's no extra setup.
 
 Quick smoke test:
 

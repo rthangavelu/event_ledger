@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import logging
+import os
 import pathlib
 from decimal import Decimal
 from typing import Optional
@@ -270,6 +271,31 @@ def create_app(
     ):
         # Read-only view over the append-only audit trail (Gateway-local).
         return {"entries": db.list_audit(account, limit)}
+
+    # --- Test controls (for exercising resiliency from the UI) -------------
+    # Gated by ENABLE_TEST_CONTROLS so they can be disabled in real deployments.
+    if os.getenv("ENABLE_TEST_CONTROLS", "true").lower() in ("1", "true", "yes"):
+
+        @app.get("/test/fault")
+        def get_fault(client: AccountClient = Depends(get_client)):
+            return {
+                "enabled": True,
+                "mode": client.fault or "off",
+                "circuit": client.circuit_state.value,
+            }
+
+        @app.post("/test/fault")
+        def set_fault(
+            mode: str = Query("off", pattern="^(off|error|timeout)$"),
+            client: AccountClient = Depends(get_client),
+        ):
+            client.set_fault(None if mode == "off" else mode)
+            audit.record("TEST_FAULT", "SET", mode=mode)
+            return {
+                "enabled": True,
+                "mode": client.fault or "off",
+                "circuit": client.circuit_state.value,
+            }
 
     return app
 

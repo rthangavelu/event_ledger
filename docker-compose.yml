@@ -21,12 +21,15 @@ services:
     environment:
       GATEWAY_DB_PATH: ":memory:"
       ACCOUNT_SERVICE_URL: "http://account-service:8001"
-      # Resiliency tuning (timeouts, retries, circuit breaker).
+      # Resiliency tuning (timeouts, retries, circuit breaker). Values are kept
+      # demo-friendly so the circuit opens/recovers quickly in the UI.
       ACCOUNT_TIMEOUT_SECONDS: "2.0"
-      ACCOUNT_MAX_RETRIES: "2"
+      ACCOUNT_MAX_RETRIES: "1"
       ACCOUNT_BACKOFF_BASE: "0.1"
-      CB_FAILURE_THRESHOLD: "5"
-      CB_RECOVERY_TIMEOUT: "10.0"
+      CB_FAILURE_THRESHOLD: "3"
+      CB_RECOVERY_TIMEOUT: "5.0"
+      # Enables the /test/fault controls used by the UI scenario runner.
+      ENABLE_TEST_CONTROLS: "true"
     ports:
       - "8000:8000"
     depends_on:

@@ -74,6 +74,12 @@ class AccountClient:
         self.backoff_base = _env_float("ACCOUNT_BACKOFF_BASE", 0.1)
         self.backoff_max = _env_float("ACCOUNT_BACKOFF_MAX", 2.0)
 
+        # Optional injected fault for testing resiliency from the outside
+        # (e.g. the UI's "make Account Service unavailable" toggle). When set,
+        # every attempt fails as if the downstream were unreachable/slow, so the
+        # *real* retry + circuit-breaker code paths are exercised.
+        self._fault: Optional[str] = None
+
         self._client = client or httpx.Client(base_url=self.base_url, timeout=self.timeout)
         self._breaker = breaker or CircuitBreaker(
             failure_threshold=_env_int("CB_FAILURE_THRESHOLD", 5),
@@ -85,6 +91,16 @@ class AccountClient:
     @property
     def circuit_state(self) -> CircuitState:
         return self._breaker.state
+
+    @property
+    def fault(self) -> Optional[str]:
+        return self._fault
+
+    def set_fault(self, mode: Optional[str]) -> None:
+        """Inject a simulated downstream fault: ``"error"``, ``"timeout"`` or
+        ``None`` to clear. Used for testing resiliency without stopping the
+        Account Service process."""
+        self._fault = mode if mode in ("error", "timeout") else None
 
     def _sleep_backoff(self, attempt: int) -> None:
         # Full jitter: sleep in [0, min(cap, base * 2**attempt)].
@@ -106,6 +122,10 @@ class AccountClient:
 
         for attempt in range(self.max_retries + 1):
             try:
+                if self._fault == "error":
+                    raise httpx.ConnectError("injected fault: account service down")
+                if self._fault == "timeout":
+                    raise httpx.ReadTimeout("injected fault: account service slow")
                 resp = self._client.request(
                     method, path, json=json, headers=headers, timeout=self.timeout
                 )

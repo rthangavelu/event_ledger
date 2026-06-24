@@ -16,20 +16,25 @@
     background: var(--bg); color: var(--text); line-height: 1.5;
   }
   header {
-    padding: 18px 28px; border-bottom: 1px solid var(--line);
+    padding: 16px 28px; border-bottom: 1px solid var(--line);
     display: flex; align-items: center; gap: 14px; background: #0b1220;
-    position: sticky; top: 0; z-index: 5;
+    position: sticky; top: 0; z-index: 5; flex-wrap: wrap;
   }
   header h1 { font-size: 18px; margin: 0; font-weight: 650; letter-spacing: .2px; }
   header .sub { color: var(--muted); font-size: 13px; }
-  .health { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .status-group { margin-left: auto; display: flex; align-items: center; gap: 18px; font-size: 13px; color: var(--muted); }
+  .status-group span.lbl { display: inline-flex; align-items: center; gap: 7px; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
   .dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
   .dot.bad { background: var(--err); box-shadow: 0 0 8px var(--err); }
-  .wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; padding: 22px 28px; max-width: 1300px; margin: 0 auto; }
-  @media (max-width: 960px) { .wrap { grid-template-columns: 1fr; } }
+  .dot.warn { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+  .wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; padding: 22px 28px; max-width: 1320px; margin: 0 auto; }
+  @media (max-width: 980px) { .wrap { grid-template-columns: 1fr; } }
+  .full { max-width: 1320px; margin: 0 auto; padding: 0 28px 28px; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
-  .card h2 { font-size: 14px; margin: 0 0 14px; text-transform: uppercase; letter-spacing: .6px; color: var(--accent); }
+  .card + .card { margin-top: 18px; }
+  .card h2 { font-size: 14px; margin: 0 0 14px; text-transform: uppercase; letter-spacing: .6px; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+  .card h2 .hint { text-transform: none; letter-spacing: 0; }
   label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
   input, select, textarea {
     width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--line);
@@ -46,18 +51,23 @@
     transition: filter .12s ease;
   }
   button:hover { filter: brightness(1.18); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
   button.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #07111f; border: none; }
   button.ghost { background: transparent; }
+  button.danger { background: rgba(239,68,68,.16); color: #fca5a5; border-color: #7f1d1d; }
+  button.warnb { background: rgba(245,158,11,.16); color: #fcd34d; border-color: #78350f; }
+  button.okb { background: rgba(34,197,94,.16); color: #86efac; border-color: #14532d; }
+  button.seg.active { outline: 2px solid var(--accent); }
   .q-group { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
   .q-group:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
-  .inline { display: flex; gap: 8px; align-items: flex-end; }
-  .inline > div { flex: 1; }
+  .inline { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+  .inline > div { flex: 1; min-width: 120px; }
   .inline label { margin-top: 0; }
   .out-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
   .badge { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--panel2); color: var(--muted); }
+  .badge.sERR, .badge.s5 { background: rgba(239,68,68,.15); color: var(--err); }
   .badge.s2 { background: rgba(34,197,94,.15); color: var(--ok); }
   .badge.s4 { background: rgba(245,158,11,.15); color: var(--warn); }
-  .badge.s5 { background: rgba(239,68,68,.15); color: var(--err); }
   pre {
     background: #0b1220; border: 1px solid var(--line); border-radius: 10px; padding: 14px;
     overflow: auto; max-height: 520px; margin: 0; font-size: 12.5px;
@@ -65,54 +75,49 @@
   }
   .trace { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
   .trace code { color: var(--accent); }
-  .pill { font-size: 11px; padding: 2px 7px; border-radius: 6px; }
-  .pill.CREDIT { background: rgba(34,197,94,.15); color: var(--credit); }
-  .pill.DEBIT { background: rgba(248,113,113,.15); color: var(--debit); }
-  .hint { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
-  a { color: var(--accent); }
+  .hint { font-size: 11.5px; color: var(--muted); }
+  .hint.block { margin-top: 8px; }
+  /* scenario runner */
+  .summary { display: flex; align-items: center; gap: 14px; margin: 4px 0 14px; font-size: 13px; }
+  .summary .big { font-size: 22px; font-weight: 800; }
+  .scenario { display: grid; grid-template-columns: 26px 1fr; gap: 10px; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 10px; margin-bottom: 8px; background: var(--panel2); align-items: start; }
+  .scenario .ico { font-size: 16px; line-height: 1.3; }
+  .scenario .nm { font-weight: 650; font-size: 13.5px; }
+  .scenario .rq { font-size: 11px; color: var(--muted); }
+  .scenario .dt { font-size: 12px; color: var(--muted); margin-top: 4px; font-family: ui-monospace, Menlo, monospace; }
+  .scenario.pass { border-color: #14532d; }
+  .scenario.fail { border-color: #7f1d1d; background: rgba(239,68,68,.08); }
+  .scenario.run { border-color: var(--accent); }
+  .scenario.skip { opacity: .65; }
+  .ico.pass { color: var(--ok); } .ico.fail { color: var(--err); } .ico.skip { color: var(--warn); }
 </style>
 </head>
 <body>
 <header>
   <h1>⛁ Event Ledger</h1>
   <span class="sub">test console</span>
-  <div class="health">
-    <span id="gw-dot" class="dot"></span> gateway
-    <span id="gw-circuit" class="sub" style="margin-left:6px"></span>
+  <div class="status-group">
+    <span class="lbl"><span id="gw-dot" class="dot"></span> gateway <span id="gw-circuit" class="sub"></span></span>
+    <span class="lbl"><span id="ds-dot" class="dot"></span> downstream <span id="ds-mode" class="sub"></span></span>
   </div>
 </header>
 
 <div class="wrap">
-  <!-- LEFT: actions -->
+  <!-- LEFT -->
   <div>
     <div class="card">
-      <h2>Submit Event &nbsp;<span class="hint">POST /events</span></h2>
+      <h2>Submit Event <span class="hint">POST /events</span></h2>
       <div class="row">
-        <div>
-          <label>Event ID</label>
-          <input id="eventId" placeholder="evt-001" />
-        </div>
-        <div>
-          <label>Account ID</label>
-          <input id="accountId" value="acct-123" />
-        </div>
+        <div><label>Event ID</label><input id="eventId" placeholder="evt-001" /></div>
+        <div><label>Account ID</label><input id="accountId" value="acct-123" /></div>
       </div>
       <div class="row3">
-        <div>
-          <label>Type</label>
-          <select id="type">
-            <option>CREDIT</option>
-            <option>DEBIT</option>
-          </select>
+        <div><label>Type</label>
+          <select id="type"><option>CREDIT</option><option>DEBIT</option></select>
         </div>
-        <div>
-          <label>Amount</label>
-          <input id="amount" type="number" step="0.01" min="0" value="150.00" />
-        </div>
-        <div>
-          <label>Currency</label>
-          <input id="currency" value="USD" />
-        </div>
+        <div><label>Amount</label><input id="amount" type="number" step="0.01" value="150.00" /></div>
+        <div><label>Currency</label><input id="currency" value="USD" /></div>
       </div>
       <label>Event timestamp</label>
       <input id="eventTimestamp" type="datetime-local" />
@@ -121,141 +126,150 @@
       <div class="btns">
         <button class="primary" onclick="submitEvent()">Submit event</button>
         <button onclick="randomId()">🎲 Random ID</button>
-        <button onclick="resubmitLast()" title="Submit again with the same ID to test idempotency">↻ Resubmit last (idempotency)</button>
+        <button onclick="resubmitLast()" title="Submit the same ID again">↻ Resubmit (idempotency)</button>
         <button class="ghost" onclick="loadSample()">Load sample</button>
       </div>
-      <div class="hint">Tip: submit the same Event ID twice → second response is <code>200</code> with <code>duplicate:true</code> and the balance is unchanged.</div>
     </div>
 
-    <div class="card" style="margin-top:18px">
+    <div class="card">
       <h2>Queries</h2>
-
       <div class="q-group">
         <div class="inline">
-          <div>
-            <label>Get event by ID &nbsp;<span class="hint">GET /events/{id}</span></label>
-            <input id="qEventId" placeholder="evt-001" />
-          </div>
+          <div><label>Get event by ID <span class="hint">GET /events/{id}</span></label><input id="qEventId" placeholder="evt-001" /></div>
           <button onclick="getEvent()">Get</button>
         </div>
       </div>
-
       <div class="q-group">
         <div class="inline">
-          <div>
-            <label>List / balance / audit by account</label>
-            <input id="qAccountId" value="acct-123" />
-          </div>
+          <div><label>By account</label><input id="qAccountId" value="acct-123" /></div>
           <button onclick="listEvents()">List events</button>
           <button onclick="getBalance()">Balance</button>
           <button onclick="getAccount()">Account</button>
           <button onclick="getAudit()">Audit</button>
         </div>
-        <div class="hint">Stop the Account Service to see graceful degradation: list still works (<code>200</code>); balance/account return <code>503</code>.</div>
       </div>
-
       <div class="q-group">
         <div class="btns">
           <button onclick="health()">Health</button>
           <button onclick="window.open('/metrics','_blank')">Metrics ↗</button>
-          <button onclick="getAudit(true)">Full audit ↗</button>
+          <button onclick="getAudit(true)">Full audit</button>
         </div>
       </div>
     </div>
+
+    <div class="card" id="fault-card">
+      <h2>Fault Injection <span class="hint">simulate Account Service outage</span></h2>
+      <div class="hint block">Toggle the downstream Account Service state to test resiliency &amp; graceful degradation without stopping any container.</div>
+      <div class="btns">
+        <button class="seg okb" id="f-off" onclick="setFault('off')">● Healthy</button>
+        <button class="seg danger" id="f-error" onclick="setFault('error')">✕ Unavailable (error)</button>
+        <button class="seg warnb" id="f-timeout" onclick="setFault('timeout')">◷ Slow (timeout)</button>
+      </div>
+      <div class="hint block">With the downstream <b>unavailable</b>: <code>POST /events</code> and balance → <code>503</code>, list/get still <code>200</code>, and the circuit breaker opens after a few failures (watch the header).</div>
+    </div>
   </div>
 
-  <!-- RIGHT: response -->
-  <div class="card">
+  <!-- RIGHT -->
+  <div class="card" style="position:sticky; top:80px; align-self:start;">
     <div class="out-head">
       <h2 style="margin:0">Response</h2>
       <span id="method" class="badge"></span>
       <span id="status" class="badge"></span>
       <span id="latency" class="sub" style="font-size:12px;color:var(--muted)"></span>
     </div>
-    <pre id="output">// Responses appear here. Submit an event to begin.</pre>
+    <pre id="output">// Responses appear here. Submit an event or run the scenarios below.</pre>
     <div class="trace" id="trace"></div>
+  </div>
+</div>
+
+<!-- FULL WIDTH: scenario runner -->
+<div class="full">
+  <div class="card">
+    <h2>Acceptance Scenarios <span class="hint">automated checks for every requirement</span></h2>
+    <div class="summary">
+      <span class="big" id="sc-score">—</span>
+      <span id="sc-summary" class="hint">Click “Run all scenarios” to verify the full requirement set against the live system.</span>
+    </div>
+    <div class="btns" style="margin-top:0">
+      <button class="primary" id="run-all" onclick="runAll()">▶ Run all scenarios</button>
+      <button onclick="renderScenarios(); " class="ghost">Reset</button>
+    </div>
+    <div id="sc-list" style="margin-top:16px"></div>
   </div>
 </div>
 
 <script>
   const $ = (id) => document.getElementById(id);
   let lastPayload = null;
+  let testControls = false;
 
+  // ---------- form helpers ----------
   function nowLocal() {
     const d = new Date(); d.setSeconds(0, 0);
     const tz = d.getTimezoneOffset() * 60000;
     return new Date(d - tz).toISOString().slice(0, 16);
   }
   $('eventTimestamp').value = nowLocal();
-
-  function randomId() {
-    $('eventId').value = 'evt-' + Math.random().toString(36).slice(2, 8);
-  }
+  const rid = () => Math.random().toString(36).slice(2, 8);
+  function randomId() { $('eventId').value = 'evt-' + rid(); }
   function loadSample() {
     randomId();
-    $('accountId').value = 'acct-123';
-    $('type').value = 'CREDIT';
-    $('amount').value = '150.00';
-    $('currency').value = 'USD';
+    $('accountId').value = 'acct-123'; $('type').value = 'CREDIT';
+    $('amount').value = '150.00'; $('currency').value = 'USD';
     $('eventTimestamp').value = nowLocal();
     $('metadata').value = '{"source": "mainframe-batch", "batchId": "B-9042"}';
   }
 
+  // ---------- HTTP + response panel ----------
   function render(method, status, body, headers, ms) {
     $('method').textContent = method;
-    const s = $('status');
-    s.textContent = status;
-    s.className = 'badge s' + String(status)[0];
+    const s = $('status'); s.textContent = status; s.className = 'badge s' + String(status)[0];
     $('latency').textContent = ms != null ? ms + ' ms' : '';
     $('output').textContent = typeof body === 'string' ? body : JSON.stringify(body, null, 2);
     const tid = headers && headers.get && headers.get('x-trace-id');
     $('trace').innerHTML = tid ? 'trace id: <code>' + tid + '</code>' : '';
   }
-
-  async function call(method, url, payload) {
+  async function api(method, url, payload, showInPanel) {
     const t0 = performance.now();
-    try {
-      const opts = { method, headers: {} };
-      if (payload !== undefined) {
-        opts.headers['Content-Type'] = 'application/json';
-        opts.body = JSON.stringify(payload);
-      }
-      const res = await fetch(url, opts);
-      const ms = Math.round(performance.now() - t0);
-      let body;
-      const ct = res.headers.get('content-type') || '';
-      body = ct.includes('application/json') ? await res.json() : await res.text();
-      render(method, res.status, body, res.headers, ms);
-      return res;
-    } catch (e) {
-      render(method, 'ERR', 'Network error: ' + e.message + '\n\nIs the Gateway running on this origin?', null, null);
-    }
+    const opts = { method, headers: {} };
+    if (payload !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(payload); }
+    const res = await fetch(url, opts);
+    const ms = Math.round(performance.now() - t0);
+    const ct = res.headers.get('content-type') || '';
+    const body = ct.includes('application/json') ? await res.json() : await res.text();
+    if (showInPanel) render(method, res.status, body, res.headers, ms);
+    return { status: res.status, ok: res.ok, body, traceId: res.headers.get('x-trace-id') };
+  }
+  async function call(method, url, payload) {
+    try { return await api(method, url, payload, true); }
+    catch (e) { render(method, 'ERR', 'Network error: ' + e.message); }
   }
 
+  function ev(o) {
+    return Object.assign({
+      eventId: 'evt-' + rid(), accountId: 'acct-123', type: 'CREDIT',
+      amount: 150.00, currency: 'USD', eventTimestamp: new Date().toISOString(),
+    }, o || {});
+  }
+
+  // ---------- manual actions ----------
   async function submitEvent() {
     const payload = {
-      eventId: $('eventId').value.trim() || ('evt-' + Math.random().toString(36).slice(2, 8)),
-      accountId: $('accountId').value.trim(),
-      type: $('type').value,
-      amount: parseFloat($('amount').value),
-      currency: $('currency').value.trim(),
+      eventId: $('eventId').value.trim() || ('evt-' + rid()),
+      accountId: $('accountId').value.trim(), type: $('type').value,
+      amount: parseFloat($('amount').value), currency: $('currency').value.trim(),
       eventTimestamp: new Date($('eventTimestamp').value).toISOString(),
     };
     $('eventId').value = payload.eventId;
     const meta = $('metadata').value.trim();
-    if (meta) {
-      try { payload.metadata = JSON.parse(meta); }
-      catch (e) { render('POST', 'ERR', 'Metadata is not valid JSON: ' + e.message); return; }
-    }
+    if (meta) { try { payload.metadata = JSON.parse(meta); } catch (e) { render('POST', 'ERR', 'Metadata is not valid JSON: ' + e.message); return; } }
     lastPayload = payload;
     await call('POST', '/events', payload);
   }
-
   async function resubmitLast() {
     if (!lastPayload) { render('POST', 'ERR', 'Submit an event first, then resubmit to test idempotency.'); return; }
     await call('POST', '/events', lastPayload);
   }
-
   function getEvent() {
     const id = $('qEventId').value.trim() || $('eventId').value.trim();
     if (!id) { render('GET', 'ERR', 'Enter an event ID.'); return; }
@@ -268,20 +282,148 @@
   function getAudit(all) { call('GET', '/audit' + (all ? '' : '?account=' + encodeURIComponent(acct()))); }
   function health() { call('GET', '/health'); }
 
+  // ---------- fault injection ----------
+  async function setFault(mode) { await call('POST', '/test/fault?mode=' + mode); pollHealth(); }
+
+  // ---------- health/status polling ----------
   async function pollHealth() {
     try {
-      const res = await fetch('/health');
-      const body = await res.json();
+      const res = await fetch('/health'); const body = await res.json();
       $('gw-dot').className = 'dot ' + (res.ok ? 'ok' : 'bad');
       const circuit = body.checks && body.checks.account_service_circuit;
-      $('gw-circuit').textContent = circuit ? '· circuit: ' + circuit : '';
+      $('gw-circuit').textContent = circuit ? '· ' + circuit : '';
+    } catch (e) { $('gw-dot').className = 'dot bad'; $('gw-circuit').textContent = '· unreachable'; }
+    try {
+      const r = await fetch('/test/fault');
+      if (r.ok) {
+        testControls = true; const f = await r.json();
+        const healthy = f.mode === 'off';
+        $('ds-dot').className = 'dot ' + (healthy ? 'ok' : (f.mode === 'timeout' ? 'warn' : 'bad'));
+        $('ds-mode').textContent = '· ' + f.mode;
+        ['off', 'error', 'timeout'].forEach(m => $('f-' + m).classList.toggle('active', f.mode === m || (m === 'off' && healthy)));
+      } else { throw 0; }
     } catch (e) {
-      $('gw-dot').className = 'dot bad';
-      $('gw-circuit').textContent = '· unreachable';
+      testControls = false;
+      $('ds-dot').className = 'dot'; $('ds-mode').textContent = '· n/a';
+      $('fault-card').style.opacity = .5;
     }
   }
-  pollHealth();
-  setInterval(pollHealth, 4000);
+  pollHealth(); setInterval(pollHealth, 3000);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  // ---------- acceptance scenario runner ----------
+  function assert(cond, msg) { if (!cond) throw new Error(msg); }
+
+  const SCENARIOS = [
+    { id: 'val-missing', nm: 'Validation: missing required field rejected', rq: 'Req 1 · Validation',
+      fn: async () => { const r = await api('POST', '/events', { eventId: 'evt-' + rid(), type: 'CREDIT', amount: 10, currency: 'USD', eventTimestamp: new Date().toISOString() });
+        assert(r.status === 400, 'expected 400, got ' + r.status); return '400 Bad Request (no accountId)'; } },
+    { id: 'val-zero', nm: 'Validation: zero amount rejected', rq: 'Req 1 · Validation',
+      fn: async () => { const r = await api('POST', '/events', ev({ amount: 0 })); assert(r.status === 400, 'expected 400, got ' + r.status); return '400 Bad Request'; } },
+    { id: 'val-neg', nm: 'Validation: negative amount rejected', rq: 'Req 1 · Validation',
+      fn: async () => { const r = await api('POST', '/events', ev({ amount: -5 })); assert(r.status === 400, 'expected 400, got ' + r.status); return '400 Bad Request'; } },
+    { id: 'val-type', nm: 'Validation: unknown type rejected', rq: 'Req 1 · Validation',
+      fn: async () => { const r = await api('POST', '/events', ev({ type: 'TRANSFER' })); assert(r.status === 400, 'expected 400, got ' + r.status); return '400 Bad Request'; } },
+    { id: 'idem', nm: 'Idempotency: duplicate eventId not double-counted', rq: 'Req 1 · Idempotency',
+      fn: async () => { const a = 'sc-' + rid(); const id = 'evt-' + rid();
+        const r1 = await api('POST', '/events', ev({ eventId: id, accountId: a, amount: 100 }));
+        assert(r1.status === 201 && r1.body.duplicate === false, 'first should be 201 new, got ' + r1.status);
+        const r2 = await api('POST', '/events', ev({ eventId: id, accountId: a, amount: 100 }));
+        assert(r2.status === 200 && r2.body.duplicate === true, 'replay should be 200 duplicate, got ' + r2.status);
+        const b = await api('GET', '/accounts/' + a + '/balance');
+        assert(b.body.balance === '100', 'balance should stay 100, got ' + b.body.balance);
+        assert(b.body.transactionCount === 1, 'txn count should be 1, got ' + b.body.transactionCount);
+        return '201 → 200 duplicate; balance 100; 1 txn'; } },
+    { id: 'order', nm: 'Out-of-order: events listed chronologically', rq: 'Req 1 · Ordering',
+      fn: async () => { const a = 'sc-' + rid();
+        await api('POST', '/events', ev({ eventId: 'B', accountId: a, eventTimestamp: '2026-05-15T12:00:00Z' }));
+        await api('POST', '/events', ev({ eventId: 'A', accountId: a, eventTimestamp: '2026-05-15T09:00:00Z' }));
+        await api('POST', '/events', ev({ eventId: 'C', accountId: a, eventTimestamp: '2026-05-15T18:00:00Z' }));
+        const l = await api('GET', '/events?account=' + a);
+        const ids = l.body.events.map(e => e.eventId);
+        assert(JSON.stringify(ids) === JSON.stringify(['A', 'B', 'C']), 'order was ' + ids.join(','));
+        return 'submitted B,A,C → listed A,B,C'; } },
+    { id: 'balance', nm: 'Balance: credits − debits, order-independent', rq: 'Req 1 · Balance',
+      fn: async () => { const a = 'sc-' + rid();
+        await api('POST', '/events', ev({ eventId: 'late', accountId: a, type: 'CREDIT', amount: 200, eventTimestamp: '2026-05-15T20:00:00Z' }));
+        await api('POST', '/events', ev({ eventId: 'early', accountId: a, type: 'DEBIT', amount: 75.50, eventTimestamp: '2026-05-15T08:00:00Z' }));
+        const b = await api('GET', '/accounts/' + a + '/balance');
+        assert(b.body.balance === '124.5', 'expected 124.5, got ' + b.body.balance);
+        return '200 CREDIT − 75.50 DEBIT = 124.5'; } },
+    { id: 'trace', nm: 'Tracing: trace ID returned & propagated', rq: 'Req 3 · Tracing',
+      fn: async () => { const a = 'sc-' + rid();
+        const r = await api('POST', '/events', ev({ accountId: a }));
+        assert(r.traceId && r.traceId.length === 32, 'no 32-char x-trace-id header');
+        const au = await api('GET', '/audit?account=' + a);
+        const applied = au.body.entries.find(e => e.outcome === 'ACCEPTED');
+        assert(applied && applied.trace_id === r.traceId, 'trace id not recorded in audit trail');
+        return 'x-trace-id ' + r.traceId.slice(0, 12) + '… correlated in audit'; } },
+    { id: 'health', nm: 'Observability: health check OK', rq: 'Req 4 · Health',
+      fn: async () => { const r = await api('GET', '/health'); assert(r.status === 200 && r.body.status === 'ok', 'health not ok');
+        assert(r.body.checks.database === 'ok', 'db check not ok'); return 'status ok; database ok; circuit ' + r.body.checks.account_service_circuit; } },
+    { id: 'metrics', nm: 'Observability: custom metrics exposed', rq: 'Req 4 · Metrics',
+      fn: async () => { const r = await api('GET', '/metrics'); assert(r.body.includes('http_requests_total'), 'missing request counter');
+        assert(r.body.includes('http_request_duration_seconds'), 'missing latency histogram'); return 'counter + latency histogram present'; } },
+    { id: 'resilience', nm: 'Resiliency + graceful degradation under outage', rq: 'Req 5 & 6', needsFault: true,
+      fn: async () => { const a = 'sc-' + rid();
+        try {
+          await api('POST', '/test/fault?mode=off');
+          const seed = await api('POST', '/events', ev({ eventId: 'seed-' + rid(), accountId: a, amount: 10 }));
+          assert(seed.status === 201, 'seed failed: ' + seed.status);
+          await api('POST', '/test/fault?mode=error');
+          const p = await api('POST', '/events', ev({ accountId: a }));
+          assert(p.status === 503, 'POST during outage should be 503, got ' + p.status);
+          const l = await api('GET', '/events?account=' + a);
+          assert(l.status === 200 && l.body.count === 1, 'reads should still work during outage');
+          const bal = await api('GET', '/accounts/' + a + '/balance');
+          assert(bal.status === 503, 'balance during outage should be 503, got ' + bal.status);
+          for (let i = 0; i < 4; i++) await api('POST', '/events', ev({ accountId: a }));
+          const f = await api('GET', '/test/fault');
+          assert(f.body.circuit === 'OPEN', 'circuit should be OPEN, got ' + f.body.circuit);
+          await api('POST', '/test/fault?mode=off');
+          let recovered = false;
+          for (let i = 0; i < 20; i++) { const rr = await api('POST', '/events', ev({ accountId: a })); if (rr.status === 201) { recovered = true; break; } await sleep(500); }
+          assert(recovered, 'gateway did not recover after fault cleared');
+          return '503 on write+balance; reads OK; circuit OPEN; recovered after clear';
+        } finally { await api('POST', '/test/fault?mode=off'); }
+      } },
+  ];
+
+  function renderScenarios(results) {
+    const list = $('sc-list'); list.innerHTML = '';
+    SCENARIOS.forEach(s => {
+      const r = results && results[s.id];
+      const state = r ? r.state : 'idle';
+      const ico = { pass: '✓', fail: '✗', skip: '–', run: '…', idle: '○' }[state];
+      const div = document.createElement('div');
+      div.className = 'scenario ' + (state === 'idle' ? '' : state);
+      div.innerHTML = '<div class="ico ' + state + '">' + ico + '</div>' +
+        '<div><div class="nm">' + s.nm + '</div><div class="rq">' + s.rq + '</div>' +
+        (r && r.detail ? '<div class="dt">' + r.detail + '</div>' : '') + '</div>';
+      list.appendChild(div);
+    });
+  }
+  renderScenarios();
+
+  async function runAll() {
+    $('run-all').disabled = true;
+    const results = {};
+    let pass = 0, fail = 0, skip = 0;
+    for (const s of SCENARIOS) {
+      if (s.needsFault && !testControls) { results[s.id] = { state: 'skip', detail: 'test controls disabled (set ENABLE_TEST_CONTROLS=true)' }; skip++; renderScenarios(results); continue; }
+      results[s.id] = { state: 'run' }; renderScenarios(results);
+      try { const detail = await s.fn(); results[s.id] = { state: 'pass', detail }; pass++; }
+      catch (e) { results[s.id] = { state: 'fail', detail: e.message }; fail++; }
+      renderScenarios(results);
+      $('sc-score').textContent = pass + '/' + SCENARIOS.length;
+    }
+    $('sc-score').textContent = pass + '/' + SCENARIOS.length;
+    $('sc-summary').innerHTML = '<b style="color:var(--ok)">' + pass + ' passed</b>' +
+      (fail ? ' · <b style="color:var(--err)">' + fail + ' failed</b>' : '') +
+      (skip ? ' · <b style="color:var(--warn)">' + skip + ' skipped</b>' : '');
+    $('run-all').disabled = false;
+    pollHealth();
+  }
 </script>
 </body>
 </html>
